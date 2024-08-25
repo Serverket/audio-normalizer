@@ -1,0 +1,48 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          audio-normalizer
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Audio Normalizer service
+# Description:       Service to automatically normalize MP3 files
+### END INIT INFO
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/opt/audio-normalizer/audio-normalizer.sh
+NAME=audio-normalizer
+DESC="Audio Normalizer service"
+PIDFILE=/var/run/$NAME.pid
+RUNASUSER=root  # Change this to the appropriate user if needed
+
+test -x $DAEMON || exit 0
+
+. /lib/lsb/init-functions
+
+case "$1" in
+  start)
+    log_daemon_msg "Starting $DESC" "$NAME"
+    start-stop-daemon --start --background --make-pidfile --pidfile $PIDFILE --chuid $RUNASUSER --exec $DAEMON
+    log_end_msg $?
+    ;;
+  stop)
+    log_daemon_msg "Stopping $DESC" "$NAME"
+    start-stop-daemon --stop --quiet --pidfile $PIDFILE
+    log_end_msg $?
+    rm -f $PIDFILE
+    ;;
+  restart|force-reload)
+    $0 stop
+    $0 start
+    ;;
+  status)
+    status_of_proc -p $PIDFILE "$DAEMON" "$NAME" && exit 0 || exit $?
+    ;;
+  *)
+    echo "Usage: $NAME {start|stop|restart|force-reload|status}" >&2
+    exit 1
+    ;;
+esac
+
+exit 0
