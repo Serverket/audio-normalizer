@@ -30,6 +30,27 @@ touch "$PROCESSED_FILES"
 # Ensure the watch directory exists
 mkdir -p "$WATCH_DIR"
 
+# Function to send notifications
+send_notification() {
+    local title="$1"
+    local message="$2"
+    
+    if [ "$XDG_CURRENT_DESKTOP" = "KDE" ] && command -v kdialog &> /dev/null; then
+        kdialog --title "$title" --passivepopup "$message" 5
+    elif command -v notify-send &> /dev/null; then
+        notify-send "$title" "$message"
+    elif command -v zenity &> /dev/null; then
+        zenity --notification --text="$title: $message"
+    elif [ "$XDG_CURRENT_DESKTOP" = "XFCE" ] && command -v xfce4-notifyd-config &> /dev/null; then
+        xfce4-notifyd-config "$title" "$message"
+    elif command -v osascript &> /dev/null; then
+        # For macOS
+        osascript -e "display notification \"$message\" with title \"$title\""
+    else
+        echo "$title: $message"
+    fi
+}
+
 inotifywait -m -e close_write,moved_to --format '%f' "$WATCH_DIR" | while read FILE
 do
     # Check if the file is an mp3
@@ -37,19 +58,19 @@ do
         # Check if the file has already been processed
         if ! grep -Fxq "$FILE" "$PROCESSED_FILES"; then
             # Notify that processing is starting
-            notify-send "$START_MSG" "$(printf "$START_BODY" "$FILE")"
+            send_notification "$START_MSG" "$(printf "$START_BODY" "$FILE")"
             
             # Wait a moment for any other write operations to complete
             sleep 2
-
+            
             # Check if the file exists before processing
             if [[ -f "${WATCH_DIR}/${FILE}" ]]; then
                 # Normalize the MP3 file
                 mp3gain -r "${WATCH_DIR}/${FILE}"
                 
                 # Notify that processing is finished
-                notify-send "$FINISH_MSG" "$(printf "$FINISH_BODY" "$FILE")"
-
+                send_notification "$FINISH_MSG" "$(printf "$FINISH_BODY" "$FILE")"
+                
                 # Add the file to the processed list
                 echo "$FILE" >> "$PROCESSED_FILES"
             fi
